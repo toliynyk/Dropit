@@ -9,9 +9,11 @@
 #import "ViewController.h"
 
 @interface ViewController () <UIDynamicAnimatorDelegate>
-@property (weak, nonatomic) IBOutlet UIView *gameView;
+@property (weak, nonatomic) IBOutlet BesierPathView *gameView;
 @property (strong, nonatomic) UIDynamicAnimator *animator;
-@property (strong, nonatomic) DropitBehavior *dropitBehavior ;
+@property (strong, nonatomic) DropitBehavior *dropitBehavior;
+@property (strong, nonatomic) UIAttachmentBehavior *attachment;
+@property (strong, nonatomic) UIView *droppingView;
 
 @end
 
@@ -93,6 +95,42 @@ static const CGSize DROP_SIZE = { 40, 40 };
 {
     [self drop];
 }
+- (IBAction)pan:(UIPanGestureRecognizer *)sender
+{
+    // sets location of gesture
+    CGPoint gesturePoint = [sender locationInView:self.gameView];
+    
+    // what to do ghen gesture begins...
+    if (sender.state == UIGestureRecognizerStateBegan) {
+        [self attachDroppingViewToPoint:gesturePoint];
+    } else if (sender.state == UIGestureRecognizerStateChanged) {   // ...gesture changes
+        self.attachment.anchorPoint = gesturePoint;
+    } else if (sender.state == UIGestureRecognizerStateEnded) {     // ...gesture ends
+        [self.animator removeBehavior:self.attachment];
+        //removes bezier path bar
+        self.gameView.path = nil;
+    }
+}
+
+-(void)attachDroppingViewToPoint:(CGPoint)anchorPoint
+{
+    if (self.droppingView) {
+        self.attachment = [[UIAttachmentBehavior alloc] initWithItem:self.droppingView attachedToAnchor:anchorPoint];
+        UIView *droppingView = self.droppingView;
+        // adds weak viewController pointer to prevent retention cycle in action code block
+        __weak ViewController *weakSelf = self;
+        // creates bezier path and draws a line between item and attachment point
+        self.attachment.action = ^{
+            UIBezierPath *path = [[UIBezierPath alloc] init];
+            [path moveToPoint:weakSelf.attachment.anchorPoint];
+            [path addLineToPoint:droppingView.center];
+            weakSelf.gameView.path = path;
+        };
+        // prevents recursive attachment
+        self.droppingView = nil;
+        [self.animator addBehavior:self.attachment];
+    }
+}
 
 - (void)drop
 {
@@ -106,6 +144,8 @@ static const CGSize DROP_SIZE = { 40, 40 };
     UIView *dropView = [[UIView alloc] initWithFrame:frame];
     dropView.backgroundColor = [self randomColor];
     [self.gameView addSubview:dropView];
+    
+    self.droppingView = dropView;
     
     [self.dropitBehavior addItem:dropView];
 }

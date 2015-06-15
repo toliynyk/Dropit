@@ -8,6 +8,7 @@
 
 #import <UIKit/UIKit.h>
 #import "DropitBehavior.h"
+#import "BesierPathView.h"
 
 @interface ViewController : UIViewController
 
